@@ -24,7 +24,7 @@
 | 库 | 描述 |
 | --- | --- |
 | GLUT | 配合OpenGL使用的精简GUI工具包，有限的GUI功能 | 
-| GLEW | 扩展加载库 |
+| GLEW | 扩展加载库，自动初始化所有（新）函数（包括核心规范）和类型定义、常量、枚举值。通常要使用完整的核心规范函数也需要使用这类加载库，具体细节 [OpenGL Getting_Functions](https://www.khronos.org/opengl/wiki/Getting_Started#Getting_Functions) |
 | GLTools | 基于GLEW的工具箱，包含矩阵向量运算库等工具 |
 
 ## OpenGL特性

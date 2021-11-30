@@ -1,3 +1,5 @@
 pdf
 pdf/*
 glTools/GLTools
+*.exe
+*.pdf
