@@ -1,6 +1,6 @@
 src = triangle.cpp 
 out = triangle
-opt = -g -lglew -lGL -lopengl32 -lglut
+opt = -lglew -lGL -lopengl32 -lglut
 
 ALL : triangle
 ${out} : ${src}

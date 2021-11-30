@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <GLTools.h>
 
+#define SPEED 0.001f;
+
 GLBatch triangle;
 GLShaderManager shaderManager;
 
@@ -24,6 +26,16 @@ void display()
     triangle.Draw();
 
     glutSwapBuffers();
+
+    vertexs[0] += movex;
+    vertexs[3] += movex;
+    vertexs[6] += movex;
+    vertexs[1] += movey;
+    vertexs[4] += movey;
+    vertexs[7] += movey;
+
+    triangle.CopyVertexData3f(vertexs);
+    glutPostRedisplay();
 }
 
 void setup()
@@ -46,16 +58,16 @@ void inputFunc(int key, int x, int y)
     switch (key)
     {
     case GLUT_KEY_LEFT:
-        movex -= .03f;
+        movex -= SPEED;
         break;
     case GLUT_KEY_RIGHT:
-        movex += .03f;
+        movex += SPEED;
         break;
     case GLUT_KEY_UP:
-        movey += .03f;
+        movey += SPEED;
         break;
     case GLUT_KEY_DOWN:
-        movey -= .03f;
+        movey -= SPEED;
         break;
     default:
         break;
@@ -67,34 +79,20 @@ void inputUpFunc(int key, int x, int y)
     switch (key)
     {
     case GLUT_KEY_LEFT:
-        movex += .03f;
+        movex += SPEED;
         break;
     case GLUT_KEY_RIGHT:
-        movex -= .03f;
+        movex -= SPEED;
         break;
     case GLUT_KEY_UP:
-        movey -= .03f;
+        movey -= SPEED;
         break;
     case GLUT_KEY_DOWN:
-        movey += .03f;
+        movey += SPEED;
         break;
     default:
         break;
     }
-}
-
-void fresh(int)
-{
-    vertexs[0] += movex;
-    vertexs[3] += movex;
-    vertexs[6] += movex;
-    vertexs[1] += movey;
-    vertexs[4] += movey;
-    vertexs[7] += movey;
-
-    triangle.CopyVertexData3f(vertexs);
-    glutPostRedisplay();
-    glutTimerFunc(15, fresh, 0);
 }
 
 int main(int argc, char **argv)
@@ -108,7 +106,6 @@ int main(int argc, char **argv)
     glutDisplayFunc(display);
     glutSpecialFunc(inputFunc);
     glutSpecialUpFunc(inputUpFunc);
-    glutTimerFunc(15, fresh, 0);
     glewInit();
 
     setup();
