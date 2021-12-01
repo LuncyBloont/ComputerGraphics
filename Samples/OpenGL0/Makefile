@@ -1,11 +1,11 @@
 src = triangle.cpp 
 out = triangle
-opt = -lglew -lGL -lopengl32 -lglut
+opt = -lGLEW32 -lGLU32 -lopengl32 -lglut
 
 ALL : triangle
 ${out} : ${src}
-	g++ ${src} /usr/local/lib/libgltools.a -o ${out} ${opt}
+	x86_64-w64-mingw32-g++ ${src} -o ${out} ${opt}
 clean : 
 	rm triangle.exe
 run :
-	startxwin ./triangle.exe
+	./triangle.exe
