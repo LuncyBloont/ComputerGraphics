@@ -75,7 +75,18 @@ GLboolean b = glIsEnabled(GL_DEPTH_TEST); // 查询深度测试
 
 ## 使用Cygwin配置环境
 
-1. 配置Cygwin，安装gcc、make、cmake、glut等软件包
+1. 配置Cygwin，安装MinGW-gcc、MinGW-g++、make、cmake、MinGW-freeglut、MinGW-glew等软件包
 2. 根据GLTools的自述文件配置编译环境并编译安装GLTools库
 
 注意事项：GLTools在Cygwin下构建时，可能需要给cmake添加WIN32的宏定义，在CmakeLists.txt文件中添加 `add_compile_definitions(WIN32)` 。如果构建时出现含 `return false` 的错误，需要修改源代码再构建。
+
+
+
+# 注意事项
+* 使用GLU时需注意，在最新的OpenGL Core中（4.*）矩阵栈已经被移除，Matrix Stack操作相关函数被移出Core，具体参考 <br> 
+[OpenGL® 4.5 Reference Pages](https://www.khronos.org/registry/OpenGL-Refpages/gl4//) <br>
+[glLoadMatrix() replacement](https://stackoverflow.com/questions/25065671/glloadmatrix-replacement) <br>
+[GluPerspective code](https://www.khronos.org/opengl/wiki/GluPerspective_code) <br>
+[Matrix stacks in OpenGL deprecated?](https://stackoverflow.com/questions/13647108/matrix-stacks-in-opengl-deprecated) <br>
+[True or false? “…Matrix Stack functionality is deprecated…”](https://community.khronos.org/t/true-or-false-matrix-stack-functionality-is-deprecated/105594) <br>
+目前书中（第五版）进度仍在使用固定渲染管线，所以前面的样例仍使用gluPerspective等函数。
