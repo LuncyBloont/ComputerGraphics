@@ -3,6 +3,7 @@
  * Email: xhymaker@126.com
  * Models from: http://www.holmes3d.net/graphics/offfiles/ https://people.sc.fsu.edu/~jburkardt/data/off/off.html
  * 
+ * 
  */
 
 #include <GL/glew.h>
@@ -11,15 +12,17 @@
 #include <glm/vec4.hpp>
 #include <glm/common.hpp>
 #include <glm/matrix.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <cstdio>
 #include <map>
 #include <utility>
 #include <sstream>
 #include "halfmesh.h"
 #include "modify.h"
+#include "render.h"
 
 #define YAW_SPEED 0.01f
-#define PITCH_SPEED 0.002f
+#define PITCH_SPEED 0.003f
 #define SCALE_SPEED 1.02f
 #define MOVE_SPEED 0.004f
 
@@ -40,6 +43,8 @@ int faceNum;
 int edgeNum;
 int vertexNum;
 
+GLuint shaderProgram;
+
 int mouseX = 0, mouseY = 0;
 bool mouseDown = false;
 bool mouseDown2 = false;
@@ -53,6 +58,9 @@ int viewVertexId = 0;
 char *filePath;
 bool withColor = false;
 bool sKey = false;
+
+m_vert *nv;
+m_face *nf;
 
 mat4x4 transMat = mat4x4(
     1.f, 0.f, 0.f, 0.f,
@@ -75,21 +83,21 @@ mat4x4 moveMat = mat4x4(
     0.f, 0.f, 0.f, 1.f
 );
 
-mat4x4 yaw = mat4x4(
+mat4x4 ryaw = mat4x4(
     cosf(YAW_SPEED), 0.f, sinf(YAW_SPEED), 0.f,
     0.f, 1.f, 0.f, 0.f,
     -sinf(YAW_SPEED), 0.f, cosf(YAW_SPEED), 0.f,
     0.f, 0.f, 0.f, 1.f
 );
 
-mat4x4 pitch = mat4x4(
+mat4x4 rpitch = mat4x4(
     1.f, 0.f, 0.f, 0.f,
     0.f, cosf(PITCH_SPEED), sinf(PITCH_SPEED), 0.f,
     0.f, -sinf(PITCH_SPEED), cosf(PITCH_SPEED), 0.f,
     0.f, 0.f, 0.f, 1.f
 );
 
-mat4x4 scale = mat4x4(
+mat4x4 mscale = mat4x4(
     SCALE_SPEED, 0.f, 0.f, 0.f,
     0.f, SCALE_SPEED, 0.f, 0.f,
     0.f, 0.f, SCALE_SPEED, 0.f,
@@ -109,6 +117,16 @@ mat4x4 moveRight = mat4x4(
     0.f, 0.f, 1.f, 0.f,
     MOVE_SPEED, 0.f, 0.f, 1.f
 );
+
+mat4x4 genProjection(GLfloat znear, GLfloat zfar, GLfloat width, GLfloat height)
+{
+    return mat4x4(
+        2.f * znear / width, 0.f, 0.f, 0.f,
+        0.f, 2.f * znear / height, 0.f, 0.f,
+        0.f, 0.f, (zfar + znear) / (znear - zfar), 2.f * zfar * znear / (znear - zfar),
+        0.f, 0.f, -1.f, 0.f
+    );
+}
 
 void drawVertex(Vertex *v, int size, mat4x4 trans)
 {
@@ -187,16 +205,156 @@ void drawFace(Face *f, int size, mat4x4 trans)
     }
 }
 
+
+GLuint vaoID;
+GLuint bufID;
+#define RESET 21997799
+#define FORMAT (3 + 2 + 3)
+GLuint *findex = nullptr;
+GLuint findexSize;
+GLfloat *nvraw = nullptr;
+
+void indexVF()
+{
+    if (findex) delete[] findex;
+    if (nvraw) delete[] nvraw;
+    nvraw = new GLfloat[vertexNum * FORMAT]; // pos, uv, normal
+    findex = new GLuint[(edgeNum + 10) * 6 + faceNum * 2];
+    GLfloat minp = 1e9f;
+    GLfloat maxp = -1e9f;
+    for (int i = 0; i < vertexNum; i++)
+    {
+        nvraw[i * FORMAT + 5] = 0.;
+        nvraw[i * FORMAT + 6] = 0.;
+        nvraw[i * FORMAT + 7] = 0.;
+        minp = min(minp, nv[i].pos.x);
+        minp = min(minp, nv[i].pos.y);
+        minp = min(minp, nv[i].pos.z);
+        maxp = max(maxp, nv[i].pos.x);
+        maxp = max(maxp, nv[i].pos.y);
+        maxp = max(maxp, nv[i].pos.z);
+    }
+    for (int i = 0; i < faceNum; i++)
+    {
+        if (nf[i].size < 3) continue;
+        vec3 normal = normalize(cross(
+            vec3(nv[nf[i].vid[1]].pos - nv[nf[i].vid[0]].pos), 
+            vec3(nv[nf[i].vid[2]].pos - nv[nf[i].vid[0]].pos)));
+        for (int j = 0; j < nf[i].size; j++)
+        {
+            nvraw[nf[i].vid[j] * FORMAT + 5] += normal.x;
+            nvraw[nf[i].vid[j] * FORMAT + 6] += normal.y;
+            nvraw[nf[i].vid[j] * FORMAT + 7] += normal.z;
+        }
+    }
+    for (int i = 0; i < vertexNum; i++)
+    {
+        nvraw[i * FORMAT + 0] = nv[i].pos.x;
+        nvraw[i * FORMAT + 1] = nv[i].pos.y;
+        nvraw[i * FORMAT + 2] = nv[i].pos.z;
+
+        vec3 normal = normalize(vec3(
+            nvraw[i * FORMAT + 5],
+            nvraw[i * FORMAT + 6],
+            nvraw[i * FORMAT + 7]));
+
+        nvraw[i * FORMAT + 5] = normal.x;
+        nvraw[i * FORMAT + 6] = normal.y;
+        nvraw[i * FORMAT + 7] = normal.z;
+
+        if (abs(normal.y) >= length(vec2(normal.x, normal.z)))
+        {
+            nvraw[i * FORMAT + 3] = nv[i].pos.x / (maxp - minp);
+            nvraw[i * FORMAT + 4] = nv[i].pos.z / (maxp - minp);
+        }
+        if (abs(normal.x) >= length(vec2(normal.y, normal.z)))
+        {
+            nvraw[i * FORMAT + 3] = nv[i].pos.y / (maxp - minp);
+            nvraw[i * FORMAT + 4] = nv[i].pos.z / (maxp - minp);
+        }
+        if (abs(normal.z) >= length(vec2(normal.x, normal.y)))
+        {
+            nvraw[i * FORMAT + 3] = nv[i].pos.x / (maxp - minp);
+            nvraw[i * FORMAT + 4] = nv[i].pos.y / (maxp - minp);
+        }
+        
+    }
+    int ix = 0;
+    for (int i = 0; i < faceNum; i++)
+    {
+        for (int j = 0; j < nf[i].size; j++)
+        {
+            findex[ix] = nf[i].vid[j];
+            ix++;
+        }
+        findex[ix] = RESET;
+        ix++;
+    }
+    findexSize = ix;
+}
+
+void init()
+{
+    glGenVertexArrays(1, &vaoID);
+    glBindVertexArray(vaoID);
+    GLfloat triny[] = {
+        0.5f, 0.2f, 0.f, 0.f, 0.f,
+        -0.5f, 0.2f, 0.f, 1.f, 0.f,
+        0.f, -0.5f, 0.f, 1.f, 1.f
+    };
+
+    glGenBuffers(1, &bufID);
+    glBindBuffer(GL_ARRAY_BUFFER, bufID);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * FORMAT * vertexNum, nvraw, GL_STATIC_DRAW);
+
+}
+
 void display()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    mat4x4 trans = transMat * moveMat * rotateMat;
-    drawFace(faces, faceNum, trans);
+    mat4x4 ptrans = transMat * moveMat * rotateMat;
+    mat4x4 ntrans = transpose(inverse(transMat * rotateMat));
+    mat4x4 proj = genProjection(2.f, -1500.f, .8f, .6f);
+    // mat4x4 trans = perspective(0.6f, 4.f / 3.f, 0.01f, 3.0f) * transMat * moveMat * rotateMat;
+    /*drawFace(faces, faceNum, trans);
     if (outLine) 
     {
         drawEdge(edges, edgeNum, trans);
         drawVertex(vertexs, vertexNum, trans);
+    }*/
+
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, bufID);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(0));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(3 * sizeof(GLfloat)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(5 * sizeof(GLfloat)));
+
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "trans"), 
+        1, GL_FALSE, value_ptr(ptrans));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "ntrans"), 
+        1, GL_FALSE, value_ptr(ntrans));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projec"), 
+        1, GL_FALSE, value_ptr(proj));
+
+    glUseProgram(shaderProgram);
+    // glDrawArrays(GL_TRIANGLE_FAN, 0, 3);
+    glEnable(GL_PRIMITIVE_RESTART);
+    glPrimitiveRestartIndex(RESET);
+    glPointSize(3.f);
+    if (!outLine)
+    {
+        glDrawElements(GL_TRIANGLE_FAN, findexSize, GL_UNSIGNED_INT, findex);
     }
+    else
+    {
+        glDrawElements(GL_LINE_LOOP, findexSize, GL_UNSIGNED_INT, findex);
+        glDrawElements(GL_POINTS, findexSize, GL_UNSIGNED_INT, findex);
+    }
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(2);
 
     glFlush();
     glutSwapBuffers();
@@ -230,7 +388,7 @@ void activeLoop()
     }
 }
 
-float simLimit = 0.f;
+GLfloat simLimit = 0.f;
 void keyFunc(int key, int x, int y)
 {
     if (key == GLUT_KEY_RIGHT && !loopActiveKeyDown)
@@ -280,7 +438,7 @@ std::string getLine(FILE *f)
     return lines;
 }
 
-void loadModel(const char *fname, bool color, bool show)
+void loadModel(const char *fname, bool color, bool showOutput)
 {
     int v = 0, f, e;
     char type[32];
@@ -289,16 +447,16 @@ void loadModel(const char *fname, bool color, bool show)
     std::stringstream(getLine(mf)) >> type >> v >> f >> e;
     if (v == 0) std::stringstream(getLine(mf)) >> v >> f >> e;
 
-    m_vert *nv = new m_vert[v];
-    m_face *nf = new m_face[f];
+    nv = new m_vert[v];
+    nf = new m_face[f];
 
-    if (show) printf("Model info:\n    TYPE: %s\n    Raw Vertex: %d\n    Raw Face: %d\n    Raw Edge: %d\n", type, v, f, e);
+    if (showOutput) printf("Model info:\n    TYPE: %s\n    Raw Vertex: %d\n    Raw Face: %d\n    Raw Edge: %d\n", type, v, f, e);
 
     for (int i = 0; i < v; i++)
     {
         double x, y, z;
         std::stringstream(getLine(mf)) >> x >> y >> z;
-        if (show) printf("-- vert%d (%lf, %lf, %lf)\n", i, x, y, z);
+        if (showOutput) printf("-- vert%d (%lf, %lf, %lf)\n", i, x, y, z);
         nv[i].pos = vec4(x, y, z, 1.f);
         nv[i].color = VERTEX_COLOR_UNACTIVE;
     }
@@ -312,7 +470,7 @@ void loadModel(const char *fname, bool color, bool show)
         auto strm = std::stringstream(getLine(mf));
         strm >> vn;
         
-        if (show) printf("-- face{%d} [ ", i);
+        if (showOutput) printf("-- face{%d} [ ", i);
         nf[i].color = vec3(0.54, 0.55, 0.56);
         nf[i].size = vn;
 
@@ -320,18 +478,18 @@ void loadModel(const char *fname, bool color, bool show)
         {
             int vi;
             strm >> vi;
-            if (show) printf("%d ", vi);
+            if (showOutput) printf("%d ", vi);
             nf[i].vid[j] = vi;
         }
-        if (show) printf("] ");
+        if (showOutput) printf("] ");
         if (color)
         {
             double r, g, b;
             strm >> r >> g >> b;
             nf[i].color = vec3(r, g, b);
-            if (show) printf("COLOR: %g %g %g", r, g, b);
+            if (showOutput) printf("COLOR: %g %g %g", r, g, b);
         }
-        if (show) printf("\n");
+        if (showOutput) printf("\n");
     }
 
     faceNum = f;
@@ -339,8 +497,7 @@ void loadModel(const char *fname, bool color, bool show)
     fclose(mf);
 
     loadMesh(nf, nv, f, v, vertexs, faces, edges, &edgeNum);
-    delete[] nf;
-    delete[] nv;
+    indexVF();
 }
 
 void keyUpFunc(int key, int x, int y)
@@ -446,19 +603,19 @@ void motionFunc(int x, int y)
         {
             for (int i = x; i < mouseX; i++)
             {
-                rotateMat = yaw * rotateMat;
+                rotateMat = ryaw * rotateMat;
             }
             for (int i = mouseX; i < x; i++)
             {
-                rotateMat = inverse(yaw) * rotateMat;
+                rotateMat = inverse(ryaw) * rotateMat;
             }
             for (int i = mouseY; i < y; i++)
             {
-                rotateMat = pitch * rotateMat;
+                rotateMat = rpitch * rotateMat;
             }
             for (int i = y; i < mouseY; i++)
             {
-                rotateMat = inverse(pitch) * rotateMat;
+                rotateMat = inverse(rpitch) * rotateMat;
             }
         }
     }
@@ -467,19 +624,19 @@ void motionFunc(int x, int y)
         
         for (int i = mouseY; i < y; i++)
         {
-            rotateMat = scale * rotateMat;
+            rotateMat = mscale * rotateMat;
         }
         for (int i = y; i < mouseY; i++)
         {
-            rotateMat = inverse(scale) * rotateMat;
+            rotateMat = inverse(mscale) * rotateMat;
         }
         for (int i = mouseX; i < x; i++)
         {
-            rotateMat = scale * rotateMat;
+            rotateMat = mscale * rotateMat;
         }
         for (int i = x; i < mouseX; i++)
         {
-            rotateMat = inverse(scale) * rotateMat;
+            rotateMat = inverse(mscale) * rotateMat;
         }
     
     }
@@ -537,15 +694,14 @@ int main(int argc, char **argv)
 
     checkModel(false);
 
-    glewInit();
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL);
     glutInitWindowSize(800, 600);
     glutCreateWindow("OFF Model View");
     glutReshapeFunc([](int w, int h)
         {
-            glLoadIdentity();
-            gluPerspective(94., 4. / 3., 0.1, 1000.);
+            // glLoadIdentity();
+            // gluPerspective(94., 4. / 3., 0.1, 1000.);
             glViewport(0, 0, w, h);
         });
     glutDisplayFunc(display);
@@ -569,14 +725,28 @@ int main(int argc, char **argv)
         }
     });
 
-    glClearColor(1.f, 1.f, 1.f, 1.f);
+    glClearColor(0.3f, 0.2f, 0.1f, 1.f);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glCullFace(GL_FRONT);
     glFrontFace(GL_CW);
     glEnable(GL_POLYGON_OFFSET_LINE);
     glEnable(GL_POLYGON_OFFSET_POINT);
+    glewInit();
 
+    GLuint vertShader = loadShader(GL_VERTEX_SHADER, "./shader/blph.vert");
+    GLuint fragShader = loadShader(GL_FRAGMENT_SHADER, "./shader/blph.frag");
+    shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertShader);
+    glAttachShader(shaderProgram, fragShader);
+    glLinkProgram(shaderProgram);
+    int logLen;
+    char logs[1024];
+    glGetProgramInfoLog(shaderProgram, 1024, &logLen, logs);
+    printf("[%s]\n", logs);
+    glDeleteShader(vertShader);
+    glDeleteShader(fragShader);
+    init();
     glutMainLoop();
 
     return 0;
