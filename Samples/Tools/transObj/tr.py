@@ -6,53 +6,53 @@ coordSet = []
 normSet = []
 oface = []
 idx = 0
+content = []
 
 def processV(frag : list):
     global vertSet
-    print('vertex ==> ')
     vertSet.append((float(frag[1]), float(frag[2]), float(frag[3])))
 
 def processVt(frag : list):
     global coordSet
-    print('coordinate ==> ')
     coordSet.append((float(frag[1]), float(frag[2])))
 
 def processVn(frag : list):
-    print('normal ==> ')
     global normSet
     normSet.append((float(frag[1]), float(frag[2]), float(frag[3])))
 
-def processF(frag : list, fw : TextIOWrapper):
+def processF(frag : list):
     global idx
     global normSet
     global vertSet
     global coordSet
-    print('face ==> ')
+    global content
     vs = []
     for i in range(1, len(frag)):
         vs.append(idx)
         tri = frag[i].split('/')
         v = vertSet[int(tri[0]) - 1]
-        c = coordSet[int(tri[1]) - 1]
-        n = normSet[int(tri[2]) - 1]
-        fw.write(str(v[0]) + ' ' + str(v[1]) + ' ' + str(v[2]) + \
+        if len(tri[1]) > 0:
+            c = coordSet[int(tri[1]) - 1]
+        else:
+            c = (0., 0.)
+        if len(tri[2]) > 0:
+            n = normSet[int(tri[2]) - 1]
+        else:
+            n = (0., 0., 1.)
+        content.append(str(v[0]) + ' ' + str(v[1]) + ' ' + str(v[2]) + \
             ' ' + str(c[0]) + ' ' + str(c[1]) + \
             ' ' + str(n[0]) + ' ' + str(n[1]) + ' ' + str(n[2]) + '\n')
         idx += 1
     oface.append(vs)
     
 
-def getLine(s : str, fw : TextIOWrapper):
+def getLine(s : str):
     index = s.find('#')
     if index >= 0:
         s = s[: index]
     
     s = s.strip('\n')
     frag = s.split(' ')
-    
-    for i in frag:
-        print('[' + i + ']', end = '')
-    print()
     
     if frag[0] == 'v':
         processV(frag)
@@ -61,7 +61,7 @@ def getLine(s : str, fw : TextIOWrapper):
     if frag[0] == 'vn':
         processVn(frag)
     if frag[0] == 'f':
-        processF(frag, fw)
+        processF(frag)
     
 
 if __name__ == '__main__':
@@ -76,16 +76,18 @@ if __name__ == '__main__':
             s = ''
             while True:
                 s = fr.readline()
-                print(s)
-                getLine(s, fw)
+                getLine(s)
                 if not s: 
                     break
-            fw.write('VEND\n')
+            print('READED.')
             for i in oface:
                 s = str(len(i)) + ' '
                 for v in i:
-                    s += str(v) + ' '
-                fw.write(s + '\n')
-            fw.write('FEND\n')
+                    s = s + str(v) + ' '
+                content.append(s + '\n')
+            print("WRITING...")
+            fw.write(str(idx) + ' ' + str(len(oface)) + '\n')
+            fw.write(''.join(content))
+            print('DONE')
                 
     
