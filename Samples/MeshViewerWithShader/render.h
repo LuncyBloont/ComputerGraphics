@@ -7,6 +7,7 @@
 
 GLuint loadShader(GLenum type, const char *path)
 {
+    printf("Load shader: %s\n", path);
     FILE *f = fopen(path, "r");
     GLuint sdr = glCreateShader(type);
     GLchar* content = new GLchar[4096 * 1024];

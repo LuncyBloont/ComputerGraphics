@@ -17,12 +17,13 @@
 #include <map>
 #include <utility>
 #include <sstream>
+#include <cstring>
 #include "load.h"
 #include "render.h"
 #include "bmp.h"
 
 #define YAW_SPEED 0.01f
-#define PITCH_SPEED 0.003f
+#define PITCH_SPEED 0.004f
 #define SCALE_SPEED 1.02f
 #define MOVE_SPEED 0.004f
 
@@ -169,24 +170,17 @@ void indexVF()
 
 void init()
 {
+    glGenBuffers(1, &bufID);
     glGenVertexArrays(1, &vaoID);
     glBindVertexArray(vaoID);
-    GLfloat triny[] = {
-        0.5f, 0.2f, 0.f, 0.f, 0.f,
-        -0.5f, 0.2f, 0.f, 1.f, 0.f,
-        0.f, -0.5f, 0.f, 1.f, 1.f
-    };
 
-    glGenBuffers(1, &bufID);
     glBindBuffer(GL_ARRAY_BUFFER, bufID);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * FORMAT * vertexNum, nvraw, GL_STATIC_DRAW);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
     glGenTextures(1, &mainTexture);
     glBindTexture(GL_TEXTURE_2D, mainTexture);
@@ -205,6 +199,15 @@ void init()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, UNPACK(smoothTexData.width, 32), UNPACK(smoothTexData.height, 32), 0,
         GL_BGR, GL_UNSIGNED_BYTE, smoothTexData.data + UNPACK(smoothTexData.offset, 32));
     glGenerateMipmap(GL_TEXTURE_2D);
+
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(0));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(3 * sizeof(GLfloat)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(5 * sizeof(GLfloat)));
+
+    glBindVertexArray(0);
 }
 
 void display()
@@ -215,50 +218,44 @@ void display()
     mat4x4 proj = genProjection(2.f, -1500.f, .8f, .6f);
 
     glUseProgram(shaderProgram);
-
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
-    glBindBuffer(GL_ARRAY_BUFFER, bufID);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(0));
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(3 * sizeof(GLfloat)));
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * FORMAT, reinterpret_cast<void*>(5 * sizeof(GLfloat)));
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, mainTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, aoTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, smoothTexture);
-
-    glUniform1i(glGetUniformLocation(shaderProgram, "mainTex"), 0);
-    glUniform1i(glGetUniformLocation(shaderProgram, "aoTex"), 1);
-    glUniform1i(glGetUniformLocation(shaderProgram, "smoothTex"), 2);
-
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "trans"), 
-        1, GL_FALSE, value_ptr(ptrans));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "ntrans"), 
-        1, GL_FALSE, value_ptr(ntrans));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projec"), 
-        1, GL_FALSE, value_ptr(proj));
-
     
-    glEnable(GL_PRIMITIVE_RESTART);
-    glPrimitiveRestartIndex(RESET);
-    glPointSize(3.f);
-    if (!outLine)
+    for (int i = 0; i < 1; i++)
     {
-        glDrawElements(GL_TRIANGLE_FAN, findexSize, GL_UNSIGNED_INT, findex);
-    }
-    else
-    {
-        glDrawElements(GL_LINE_LOOP, findexSize, GL_UNSIGNED_INT, findex);
-        glDrawElements(GL_POINTS, findexSize, GL_UNSIGNED_INT, findex);
-    }
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-    glDisableVertexAttribArray(2);
+        glBindVertexArray(vaoID);
 
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, mainTexture);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, aoTexture);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, smoothTexture);
+
+        glUniform1i(glGetUniformLocation(shaderProgram, "mainTex"), 0);
+        glUniform1i(glGetUniformLocation(shaderProgram, "aoTex"), 1);
+        glUniform1i(glGetUniformLocation(shaderProgram, "smoothTex"), 2);
+
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "trans"), 
+            1, GL_FALSE, i == 0 ? value_ptr(ptrans) : value_ptr(transMat * rotateMat));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "ntrans"), 
+            1, GL_FALSE, value_ptr(ntrans));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projec"), 
+            1, GL_FALSE, value_ptr(proj));
+        
+        glEnable(GL_PRIMITIVE_RESTART);
+        glPrimitiveRestartIndex(RESET);
+        glPointSize(3.f);
+        if (!outLine && i == 0)
+        {
+            glDrawElements(GL_TRIANGLE_FAN, findexSize, GL_UNSIGNED_INT, findex);
+        }
+        else
+        {
+            glDrawElements(GL_LINE_LOOP, findexSize, GL_UNSIGNED_INT, findex);
+            glDrawElements(GL_POINTS, findexSize, GL_UNSIGNED_INT, findex);
+        }
+        glBindVertexArray(0);
+    }
+    
     glFlush();
     glutSwapBuffers();
     glutPostRedisplay();
@@ -387,16 +384,26 @@ void motionFunc(int x, int y)
 
 int main(int argc, char **argv)
 {
-    if (argc < 5)
+    if (argc < 2)
     {
-        printf("Usage: off FILE TEXFILE AO SMOOTH\n");
+        printf("Usage: off FILE [TEXFILE] [AO] [SMOOTH]\n");
         exit(-1);
     }
     load(verts, faces, &vertexNum, &faceNum, argv[1]);
     indexVF();
-    texData = readBmp(argv[2]);
-    aoTexData = readBmp(argv[3]);
-    smoothTexData = readBmp(argv[4]);
+    
+    char dir[2048];
+    strcpy(dir, argv[0]);
+    int dirLimit = strrchr(dir, '\\') - dir + 1;
+    dir[dirLimit] = 0;
+    strcat(dir, "gray.bmp");
+    texData = readBmp(argc < 3 ? dir : argv[2]);
+    dir[dirLimit] = 0;
+    strcat(dir, "noAO.bmp");
+    aoTexData = readBmp(argc < 4 ? dir : argv[3]);
+    dir[dirLimit] = 0;
+    strcat(dir, "smooth.bmp");
+    smoothTexData = readBmp(argc < 5 ? dir : argv[4]);
     filePath = argv[1];
 
     glutInit(&argc, argv);
@@ -428,7 +435,7 @@ int main(int argc, char **argv)
         }
     });
 
-    glClearColor(0.3f, 0.2f, 0.1f, 1.f);
+    glClearColor(0.2f, 0.2f, 0.16f, 1.f);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glCullFace(GL_FRONT);
@@ -437,8 +444,12 @@ int main(int argc, char **argv)
     glEnable(GL_POLYGON_OFFSET_POINT);
     glewInit();
 
-    GLuint vertShader = loadShader(GL_VERTEX_SHADER, "./shader/blph.vert");
-    GLuint fragShader = loadShader(GL_FRAGMENT_SHADER, "./shader/blph.frag");
+    dir[dirLimit] = 0;
+    strcat(dir, "shader\\blph.vert");
+    GLuint vertShader = loadShader(GL_VERTEX_SHADER, dir);
+    dir[dirLimit] = 0;
+    strcat(dir, "shader\\blph.frag");
+    GLuint fragShader = loadShader(GL_FRAGMENT_SHADER, dir);
     shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertShader);
     glAttachShader(shaderProgram, fragShader);

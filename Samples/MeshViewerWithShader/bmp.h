@@ -30,7 +30,7 @@ bmp_head readBmp(const char* path)
     bmp_head head;
     if (!f)
     {
-        printf("BMP file read failed.\n");
+        printf("BMP file read failed. %s\n", path);
         exit(-1);
     }
     fread(&head, sizeof(bmp_head), 1, f);
