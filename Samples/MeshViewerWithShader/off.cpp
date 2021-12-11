@@ -219,7 +219,7 @@ void display()
 
     glUseProgram(shaderProgram);
     
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 2; i++)
     {
         glBindVertexArray(vaoID);
 
@@ -235,7 +235,7 @@ void display()
         glUniform1i(glGetUniformLocation(shaderProgram, "smoothTex"), 2);
 
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "trans"), 
-            1, GL_FALSE, i == 0 ? value_ptr(ptrans) : value_ptr(transMat * rotateMat));
+            1, GL_FALSE, value_ptr(ptrans));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "ntrans"), 
             1, GL_FALSE, value_ptr(ntrans));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projec"), 
@@ -243,15 +243,13 @@ void display()
         
         glEnable(GL_PRIMITIVE_RESTART);
         glPrimitiveRestartIndex(RESET);
-        glPointSize(3.f);
         if (!outLine && i == 0)
         {
             glDrawElements(GL_TRIANGLE_FAN, findexSize, GL_UNSIGNED_INT, findex);
         }
-        else
+        else if (glIsEnabled(GL_CULL_FACE))
         {
             glDrawElements(GL_LINE_LOOP, findexSize, GL_UNSIGNED_INT, findex);
-            glDrawElements(GL_POINTS, findexSize, GL_UNSIGNED_INT, findex);
         }
         glBindVertexArray(0);
     }
@@ -283,7 +281,10 @@ void charKeyFunc(unsigned char key, int x, int y)
 {
     if (key == 'c')
     {
-        if (glIsEnabled(GL_CULL_FACE)) glDisable(GL_CULL_FACE);
+        if (glIsEnabled(GL_CULL_FACE)) 
+        {
+            glDisable(GL_CULL_FACE);
+        }
         else if (!glIsEnabled(GL_CULL_FACE)) glEnable(GL_CULL_FACE);
     }
     if (key == 's')
