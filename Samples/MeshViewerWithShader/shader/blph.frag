@@ -19,12 +19,12 @@ void main(void) {
     vec3 normal = normalize(v.normal);
     vec3 base = texture(mainTex, v.uv).rgb;
     float ao = pow(texture(aoTex, v.uv).r, 2.);
-    float smoo = texture(smoothTex, v.uv).r;
+    float smoo = 1. - pow(1. - texture(smoothTex, v.uv).r, 3.) * 0.8;
     // mix(vec3(0.98, 0.27, 0.2), vec3(0.23, 0.00, 0.78), fract(floor(v.uv.x * 16.) / 2. + floor(v.uv.y * 16.) / 2.));
     color = vec4(
         base / 1.4 * ao + 
         base * ao * vec3(1., 1., 1.) * pow((1. - abs(dot(normal, normalize(v.pos.xyz)))), 1.3) / 2. + 
         base * ao * lightColor.rgb * max(0., dot(lightDir, normal)) * 1.3 + 
-        base * ao * 3. * smoo * pow(max(0., dot(normalize((normalize(v.pos.xyz) - lightDir) / 2.), -normal)), 87. * (0.01 + smoo)) * lightColor.rgb
+        base * ao * 3. * smoo * pow(max(0., dot(normalize((normalize(v.pos.xyz) - lightDir) / 2.), -normal)), 128. * (0.01 + smoo)) * lightColor.rgb
         , 1.);
 }

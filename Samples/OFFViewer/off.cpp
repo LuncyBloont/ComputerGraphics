@@ -142,7 +142,7 @@ void drawEdge(Edge *pre, int size, mat4x4 trans)
     glPolygonOffset(0.0, 0.0);
 }
 
-void drawFace(Face *f, int size, mat4x4 trans)
+void drawFace(Face *f, int size, mat4x4 trans, mat4x4 ntrans)
 {
     for (int i = 0; i < size; i++)
     {
@@ -155,7 +155,7 @@ void drawFace(Face *f, int size, mat4x4 trans)
             vec4 p = trans * e->end->position;
             if (!flatRender)
             {
-                glColor3f(SPLIT3((1.0 + dot(normalize(vec3(trans * e->end->normal)), vec3(0., 0., -1.))) / 2.0 * f[i].color));
+                glColor3f(SPLIT3((1.0 + dot(normalize(vec3(ntrans * e->end->normal)), vec3(0., 0., -1.))) / 2.0 * f[i].color));
                 glVertex3f(SPLIT3(p));
                 e = e->next;
             }
@@ -191,7 +191,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     mat4x4 trans = transMat * moveMat * rotateMat;
-    drawFace(faces, faceNum, trans);
+    drawFace(faces, faceNum, trans, transpose(inverse(trans)));
     if (outLine) 
     {
         drawEdge(edges, edgeNum, trans);

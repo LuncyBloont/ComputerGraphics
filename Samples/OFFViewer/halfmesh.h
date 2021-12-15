@@ -50,11 +50,11 @@ struct m_face
     vec3 color;
 };
 
-void loadMesh(m_face *fs, m_vert *vs, int fc, int vc, Vertex* & vertexs, Face* & faces, Edge* & edges, int *ecnt)
+void loadMesh(m_face *fs, m_vert *vs, int fc, int vc, Vertex *&vertexs, Face *&faces, Edge *&edges, int *ecnt)
 {
     int v = 0, f, e = 0;
     int ei = 0;
-    std::map<std::pair<int ,int>, int> edgeSheet; // (Vi, Vj) : Ex
+    std::map<std::pair<int, int>, int> edgeSheet; // (Vi, Vj) : Ex
 
     v = vc;
     f = fc;
@@ -77,13 +77,14 @@ void loadMesh(m_face *fs, m_vert *vs, int fc, int vc, Vertex* & vertexs, Face* &
         int v0;
 
         vn = fs[i].size;
-        
+
         faces[i].color = fs[i].color;
         int vcnt = 0;
         for (int j = 0; j <= vn; j++)
         {
             int vi = v0;
-            if (j < vn) vi = fs[i].vid[j];
+            if (j < vn)
+                vi = fs[i].vid[j];
             vcnt++;
 
             // 流形要求，该点与该面的上一个点的正边一定是第一次出现
@@ -96,7 +97,7 @@ void loadMesh(m_face *fs, m_vert *vs, int fc, int vc, Vertex* & vertexs, Face* &
             }
             else
             {
-                // 与上一个点构成边，该边终点为当前点，即边 vpre->vi 
+                // 与上一个点构成边，该边终点为当前点，即边 vpre->vi
                 // new edge (end: vi)
                 // vpre (out edge: new edge)
 
@@ -117,7 +118,21 @@ void loadMesh(m_face *fs, m_vert *vs, int fc, int vc, Vertex* & vertexs, Face* &
         }
     }
 
-    for (int i = 0; i < vc; i++)
+    for (int i = 0; i < fc; i++)
+    {
+        Edge *p = faces[i].edge;
+        if (p == p->next->next) continue;
+        vec3 nor = normalize(cross(
+            vec3(p->end->position - p->next->end->position),
+            vec3(p->next->end->position - p->next->next->end->position)));
+        do
+        {
+            p->end->normal -= vec4(nor, 0.f);
+            p = p->next;
+        } while (p != faces[i].edge);
+    }
+
+    /*for (int i = 0; i < vc; i++)
     {
         vec3 normal = vec3(0.f);
         float base = 0.f;
@@ -126,7 +141,8 @@ void loadMesh(m_face *fs, m_vert *vs, int fc, int vc, Vertex* & vertexs, Face* &
         int k = 100;
         do
         {
-            if (!p || !p->invert) break;
+            if (!p || !p->invert)
+                break;
             valid = true;
             vec3 v1 = vec3(p->end->position - vertexs[i].position);
             vec3 v2 = vec3(p->invert->next->end->position - vertexs[i].position);
@@ -135,15 +151,13 @@ void loadMesh(m_face *fs, m_vert *vs, int fc, int vc, Vertex* & vertexs, Face* &
             base += 1.f;
 
             p = p->invert->next;
-        } 
-        while (p != vertexs[i].edge && k-- > 0);
+        } while (p != vertexs[i].edge && k-- > 0);
 
         if (valid)
         {
             vertexs[i].normal = vec4(normal / base, 0.f);
         }
-        
-    }
+    }*/
 
     *ecnt = ei;
 }
@@ -151,7 +165,8 @@ void loadMesh(m_face *fs, m_vert *vs, int fc, int vc, Vertex* & vertexs, Face* &
 void clean(m_vert *vs, m_face *fs, int *vcnt, int *fcnt, float slimit, float llimit)
 {
     int *replace = new int[*vcnt];
-    for (int i = 0; i < *vcnt; i++) replace[i] = i;
+    for (int i = 0; i < *vcnt; i++)
+        replace[i] = i;
     for (int i = 0; i < *fcnt; i++)
     {
         for (int j = 0; j < fs[i].size; j++)
@@ -182,7 +197,7 @@ void clean(m_vert *vs, m_face *fs, int *vcnt, int *fcnt, float slimit, float lli
             }
         }
     }
-    
+
     delete[] replace;
 }
 
