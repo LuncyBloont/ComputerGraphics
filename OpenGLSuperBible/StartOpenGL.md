@@ -25,7 +25,7 @@
 | --- | --- |
 | GLUT | 配合OpenGL使用的精简GUI工具包，有限的GUI功能 | 
 | GLEW | 扩展加载库，自动初始化所有（新）函数（包括核心规范）和类型定义、常量、枚举值。通常要使用完整的核心规范函数也需要使用这类加载库，具体细节 [OpenGL Getting_Functions](https://www.khronos.org/opengl/wiki/Getting_Started#Getting_Functions) |
-| GLTools | 基于GLEW的工具箱，包含矩阵向量运算库等工具 |
+| GLM | 数学运算库，包含矩阵向量运算库等工具 |
 
 ## OpenGL特性
 
@@ -72,15 +72,21 @@ GLboolean b = glIsEnabled(GL_DEPTH_TEST); // 查询深度测试
 # 第一个OpenGL程序
 
 获取GLTools： [GLTools](https://github.com/HazimGazov/GLTools)<br>
+OpenGL0、OFFViewer使用的是固定渲染管线，此外所有样例均使用可编程渲染管线。所有样例都未使用GLTools库，该库为蓝宝书第五版的辅助脚手架。
 
 ## 使用Cygwin配置环境
 
-1. 配置Cygwin，安装MinGW-gcc、MinGW-g++、make、cmake、MinGW-freeglut、MinGW-glew等软件包
-2. 根据GLTools的自述文件配置编译环境并编译安装GLTools库
+1. 配置Cygwin，安装MinGW-gcc、MinGW-g++、make、cmake、MinGW-freeglut、MinGW-glew、glm等软件包
+2. 按需根据GLTools的自述文件配置编译环境并编译安装GLTools库
 
 注意事项：GLTools在Cygwin下构建时，可能需要给cmake添加WIN32的宏定义，在CmakeLists.txt文件中添加 `add_compile_definitions(WIN32)` 。如果构建时出现含 `return false` 的错误，需要修改源代码再构建。
 
+## 使用MSYS2配置环境
 
+1. 安装MSYS2，使用pacman安装gcc、g++、make、freeglut、glew、glm、cmake等工具
+2. 按需根据GLTools的自述文件配置编译环境并编译安装GLTools库
+
+注意事项：GLTools在构建时，可能需要给cmake添加WIN32的宏定义，在CmakeLists.txt文件中添加 `add_compile_definitions(WIN32)` 。如果构建时出现含 `return false` 的错误，需要修改源代码再构建。
 
 # 注意事项
 * 使用GLU时需注意，在最新的OpenGL Core中（4.*）矩阵栈已经被移除，Matrix Stack操作相关函数被移出Core，具体参考 <br> 
@@ -89,4 +95,3 @@ GLboolean b = glIsEnabled(GL_DEPTH_TEST); // 查询深度测试
 [GluPerspective code](https://www.khronos.org/opengl/wiki/GluPerspective_code) <br>
 [Matrix stacks in OpenGL deprecated?](https://stackoverflow.com/questions/13647108/matrix-stacks-in-opengl-deprecated) <br>
 [True or false? “…Matrix Stack functionality is deprecated…”](https://community.khronos.org/t/true-or-false-matrix-stack-functionality-is-deprecated/105594) <br>
-目前书中（第五版）进度仍在使用固定渲染管线，所以前面的样例仍使用gluPerspective等函数。
